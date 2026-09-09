@@ -1,8 +1,6 @@
 # RACE — Rapid Assessment for Carbon Stock and Wildlife Ecology
 
-RACE is an R Shiny application for processing raw field-survey data from fauna transects and vegetation plots.
-
-Developed and maintained by Fauna & Flora's Indonesia Programme.
+RACE is an R Shiny application for processing raw field-survey data from fauna transects and vegetation plots. It is developed and maintained by Fauna & Flora's Indonesia Programme.
 
 ## What it does
 
@@ -25,7 +23,7 @@ RACE is organized into two parallel workflows, each a sequence of tabs meant to 
 
 ### Prerequisites
 
-- R (developed against R 4.6.1)
+- R (developed on R 4.6.1)
 - The packages listed under **Dependencies** below
 
 ### Running the app
