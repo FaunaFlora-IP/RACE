@@ -144,17 +144,21 @@ calc_AGB_compare <- function(
 
 
 #' Expand per-tree AGB (kg) to AGB per hectare using the nested-plot DBH-class
-#' expansion factors (A x4, B x25, C x100), based on the DBH.G column added
-#' during Flora Data Processing. Called right after calc_AGB() when building
-#' the final AGC-by-plot table.
-add_agb_tpha <- function(data, agb_kg_col = "AGB_kg") {
+#' expansion factors, based on the DBH.G column added during Flora Data
+#' Processing. Defaults to Indonesia's standard nested sub-plot design
+#' (Class A 20x125m, B 20x20m, C 10x10m -> factors 4/25/100 = 10000 / area).
+#' Pass a different named c(A=, B=, C=) vector via `factors` when a survey
+#' used its own sub-plot sizes (see class_size_factors() in server.R, which
+#' builds this from the "Nested Sub-Plot Design" UI option). Called right
+#' after calc_AGB() when building the final AGC-by-plot table.
+add_agb_tpha <- function(data, agb_kg_col = "AGB_kg", factors = c(A = 4, B = 25, C = 100)) {
   stopifnot("DBH.G" %in% names(data), agb_kg_col %in% names(data))
   dplyr::mutate(
     data,
     `AGB(ton/ha)` = dplyr::case_when(
-      DBH.G == "A" ~ 4   * .data[[agb_kg_col]] / 1000,
-      DBH.G == "B" ~ 25  * .data[[agb_kg_col]] / 1000,
-      DBH.G == "C" ~ 100 * .data[[agb_kg_col]] / 1000,
+      DBH.G == "A" ~ factors[["A"]] * .data[[agb_kg_col]] / 1000,
+      DBH.G == "B" ~ factors[["B"]] * .data[[agb_kg_col]] / 1000,
+      DBH.G == "C" ~ factors[["C"]] * .data[[agb_kg_col]] / 1000,
       TRUE         ~ NA_real_
     )
   )
