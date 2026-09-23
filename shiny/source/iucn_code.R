@@ -1,8 +1,5 @@
 # Preparation----
-# This file is sourced by both app.R (top-level source/iucn_code.R, before
-# runApp starts) and ui.R (shiny/source/iucn_code.R). It provides the three
-# API-lookup functions shared by the Fauna and Flora Conservation Status
-# tabs, plus the GBIF validation helper used by the Data Processing tabs.
+
 
 ## Load library----
 library(shiny)

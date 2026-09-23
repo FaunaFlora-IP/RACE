@@ -306,6 +306,13 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = TRUE,
                   maximizable = TRUE,
+                  p(
+                    "Hover a method name below for a short explanation. For further explanation, please visit ",
+                    # PLACEHOLDER LINK - replace href with the real reference URL when available
+                    tags$a(href = "https://doi.org/10.13140/RG.2.2.20744.62722", target = "_blank", "this resource"),
+                    ".",
+                    style = "font-size: 0.85em; color: #6c757d; margin-bottom: 8px;"
+                  ),
                   DTOutput(outputId = "est_table")
                 ),
                 bs4Card(
@@ -331,15 +338,22 @@ ui <- dashboardPage(
                   # Add method selector
                   selectInput(
                     inputId = "distance_method",
-                    label = "Distance Method",
+                    label = tagList(
+                      "Distance Method ",
+                      tags$span(
+                        icon("circle-question"),
+                        title = "Bray-Curtis: weights by abundance (how many individuals of each species). Jaccard: based on species presence/absence only, ignoring counts.",
+                        style = "cursor: help; color: #6c757d;"
+                      )
+                    ),
                     choices = c("Bray-Curtis" = "bray", "Jaccard" = "jaccard"),
                     selected = "bray"
                   ),
-                  
+
                   # Plot output
                   plotOutput("cluster_plot_b")
                 ),
-                
+
                 bs4Card(
                   title = "Dissimilarity",
                   status = "primary",
@@ -349,7 +363,14 @@ ui <- dashboardPage(
                   maximizable = TRUE,
                   selectInput(
                     inputId = "distance_method_table",
-                    label = "Distance Method",
+                    label = tagList(
+                      "Distance Method ",
+                      tags$span(
+                        icon("circle-question"),
+                        title = "Bray-Curtis: weights by abundance (how many individuals of each species). Jaccard: based on species presence/absence only, ignoring counts.",
+                        style = "cursor: help; color: #6c757d;"
+                      )
+                    ),
                     choices = c("Bray-Curtis" = "bray", "Jaccard" = "jaccard"),
                     selected = "bray"
                   ),
@@ -654,8 +675,10 @@ tabItem(tabName = "Flo_dat_car",
                             "text/comma-separated-values,text/plain",
                             ".csv")),
 
-                selectInput("stratum_plotid_col", "Plot ID Column", choices = NULL),
-                selectInput("stratum_stratum_col", "Stratum Column", choices = NULL)
+                p("Please select the column(s) that indicate Plot ID and Stratum, in that order (2 columns total)."),
+
+                selectInput("stratum_selected_columns", "Select Columns to Use",
+                            choices = NULL, multiple = TRUE)
               ),
               column(
                 width = 6,
@@ -737,7 +760,14 @@ tabItem(tabName = "Flo_dat_car",
 
         fluidRow(
           bs4Card(
-            title = "QQ plot of AGB",
+            title = tagList(
+              "QQ plot of AGB ",
+              tags$span(
+                icon("circle-question"),
+                title = "Compares AGB per plot against a theoretical normal distribution. Points sitting close to the diagonal line suggest AGB is roughly normal; curves or scattered points suggest it isn't.",
+                style = "cursor: help; color: rgba(255,255,255,0.85); font-size: 0.85em;"
+              )
+            ),
             status = "info",
             width = 6,
             solidHeader = TRUE,
@@ -747,7 +777,14 @@ tabItem(tabName = "Flo_dat_car",
           ),
 
           bs4Card(
-            title = "Normal distibution of AGB",
+            title = tagList(
+              "Normal distribution of AGB ",
+              tags$span(
+                icon("circle-question"),
+                title = "Boxplot of AGB per plot - shows the median, spread, and any outliers, a second way (alongside the Q-Q plot) to spot skew before treating the data as normally distributed.",
+                style = "cursor: help; color: rgba(255,255,255,0.85); font-size: 0.85em;"
+              )
+            ),
             status = "info",
             width = 6,
             solidHeader = TRUE,
@@ -757,6 +794,29 @@ tabItem(tabName = "Flo_dat_car",
           )
         ),
 
+        fluidRow(
+          bs4Card(
+            title = "Mean Tree Density",
+            status = "info",
+            width = 6,
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            maximizable = TRUE,
+            p("Mean tree density by DBH size class and stratum to sanity-check whether the nested-plot expansion looks reasonable (smaller size classes are typically denser)."),
+            DTOutput(outputId = "tree_density_by_class_table", width = "100%")
+          ),
+          
+          bs4Card(
+            title = "Mean Tree Density by Stratum",
+            status = "info",
+            width = 6,
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            maximizable = TRUE,
+            DTOutput(outputId = "tree_density_table", width = "100%")
+          )
+        ),
+        
         fluidRow(
           bs4Card(
             title = "AGC Reference (Indonesia FRL)",
@@ -789,29 +849,6 @@ tabItem(tabName = "Flo_dat_car",
             collapsible = TRUE,
             maximizable = TRUE,
             plotOutput(outputId = "agc_by_stratum_plot", width = "100%")
-          )
-        ),
-
-        fluidRow(
-          bs4Card(
-            title = "Mean Tree Density",
-            status = "info",
-            width = 6,
-            solidHeader = TRUE,
-            collapsible = TRUE,
-            maximizable = TRUE,
-            p("Mean tree density by DBH size class and stratum to sanity-check whether the nested-plot expansion looks reasonable (smaller size classes are typically denser)."),
-            DTOutput(outputId = "tree_density_by_class_table", width = "100%")
-          ),
-
-          bs4Card(
-            title = "Mean Tree Density by Stratum",
-            status = "info",
-            width = 6,
-            solidHeader = TRUE,
-            collapsible = TRUE,
-            maximizable = TRUE,
-            DTOutput(outputId = "tree_density_table", width = "100%")
           )
         ),
 

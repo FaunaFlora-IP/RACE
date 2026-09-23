@@ -53,13 +53,6 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
   })
 
 ### Column selections ----
-# A single multi-select, matched to the required fields by the ORDER the
-# user picks them in (Transect, Scientific Name, Taxon Rank, then -
-# Avifauna only - Observation Type, Individual Count). Pick columns in a
-# different order and they'll be silently mislabeled (e.g. Indv ending up
-# holding text like "PointLoc"), which only surfaces later as a cryptic
-# "invalid type" crash in Results - so the column order above must be
-# followed exactly when selecting.
   validated_data <- eventReactive(input$faunastart, {
     req(fauna_data())
     req(input$selected_columns)
@@ -301,7 +294,23 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
     out3 <- rbind(new_row, out3)
     
     final_table <- out3[c(1, 2, 6,9), ]
-    
+
+    # Concise hover text per method, shown via the native browser tooltip
+    method_tips <- c(
+      "Observed Species" = "Species actually recorded - no estimate of unseen species.",
+      "Homogeneous Model" = "Assumes all species are equally easy to detect.",
+      "iChao1 (Chiu et al. 2014)" = "Lower-bound estimate using species seen 1-4 times.",
+      "1st order jackknife" = "Estimates missed species from those seen only once."
+    )
+    final_table$Method <- trimws(final_table$Method)
+    final_table$Method <- ifelse(
+      final_table$Method %in% names(method_tips),
+      paste0('<span title="', method_tips[final_table$Method],
+             '" style="cursor: help; border-bottom: 1px dotted #6c757d;">',
+             final_table$Method, '</span>'),
+      final_table$Method
+    )
+
     DT::datatable(final_table, extensions = "Buttons", filter = "top",
                   options = list(
                     paging = FALSE,
@@ -494,7 +503,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
       rename(Appendix = CITES_Appendix) %>%
       arrange(Order, Family, Species)
 
-    result # Return the result
+    result 
   })
   
 ### Table of taxon and conservation status ----
@@ -570,12 +579,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
   })
 
 ### Column selections ----
-# A single multi-select, matched to the required fields by the ORDER the
-# user picks them in (Transect, Plot ID, Tree ID, Scientific Name, Taxon
-# Rank, Class, Girth, Tree Height). Pick columns in a different order and
-# they'll be silently mislabeled, which only surfaces later as a cryptic
-# crash further down the pipeline - so the column order above must be
-# followed exactly when selecting.
+
   validated_flora <- eventReactive(input$florastart, {
     req(flora_data())
     req(input$Flo_selected_columns)
@@ -873,7 +877,7 @@ output$IV <- renderDT({
   impset <- sayur %>% 
     group_by(Transect, Class, Scientific.Name) %>% 
     summarise(count = n(),
-              basal = sum(0.7854*(DBH/100)^2)) %>% #konversi dbh (cm) ke basal area dalam meter persegi
+              basal = sum(0.7854*(DBH/100)^2)) %>% #convert dbh (cm) to basal area in msq
     ungroup() %>% 
     as.data.frame
   
@@ -949,7 +953,7 @@ flora_with_wd <- eventReactive(input$carbonvalidate, {
   attach_wood_density(calculateDataFlora(), default_rho = 0.57)
 })
 
-### Wood density data (original input + wood density, downloadable)----
+### Wood density data----
 output$wd_data_table <- renderDT({
 
   req(flora_with_wd())
@@ -1064,8 +1068,7 @@ stratum_data <- reactive({
 observeEvent(input$stratum_csv_file, {
   req(stratum_data())
 
-  updateSelectInput(session, "stratum_plotid_col", choices = names(stratum_data()))
-  updateSelectInput(session, "stratum_stratum_col", choices = names(stratum_data()))
+  updateSelectInput(session, "stratum_selected_columns", choices = names(stratum_data()), selected = NULL)
 })
 
 ## Revised wood density re-upload (edited from Wood Density Data download)----
@@ -1075,16 +1078,7 @@ wd_revised_data <- reactive({
 })
 
 ## Nested sub-plot expansion factors per DBH class (A/B/C)----
-# Class C (Pancang/sapling), Class B (Tiang/pole) and Class A (Pohon/tree)
-# are each measured in a differently-sized nested sub-plot, so every tree's
-# value has to be scaled up by (1 / sub-plot area in hectares) to become a
-# per-hectare figure. Defaults to Indonesia's standard nested-plot design
-# (C: 0.01 ha, B: 0.04 ha, A: 0.25 ha -> factors 100/25/4) unless the user
-# picks "custom" and supplies their own sub-plot area (ha) per class for
-# this survey - some methods even use the letters differently (e.g. "A" for
-# the smallest class), so nothing here assumes the default DBH/size pairing.
-# Feeds add_agb_tpha() (via flora_confirmed) and the two density_factor
-# case_when() blocks below, so all three stay consistent with one choice.
+
 class_size_factors <- reactive({
   if (identical(input$class_size_source, "custom")) {
     req(input$class_a_area_ha, input$class_b_area_ha, input$class_c_area_ha)
@@ -1120,12 +1114,17 @@ class_dbh_labels <- reactive({
 })
 
 ## Confirmed dataset: chosen wood density source + stratum + final equation----
+
 flora_confirmed <- eventReactive(input$carbonconfirm, {
 
   req(input$final_allometric_method)
   req(stratum_data())
-  req(input$stratum_plotid_col)
-  req(input$stratum_stratum_col)
+  req(input$stratum_selected_columns)
+
+  if (length(input$stratum_selected_columns) != 2) {
+    showNotification("Please select exactly 2 columns for the stratum file: Plot ID, then Stratum.", type = "error")
+    return(NULL)
+  }
 
   wd_source_data <- if (identical(input$wd_source, "upload")) {
     req(wd_revised_data())
@@ -1140,8 +1139,8 @@ flora_confirmed <- eventReactive(input$carbonconfirm, {
 
   strat <- stratum_data() %>%
     dplyr::transmute(
-      Plot.ID = as.character(.data[[input$stratum_plotid_col]]),
-      Stratum = as.character(.data[[input$stratum_stratum_col]])
+      Plot.ID = as.character(.data[[input$stratum_selected_columns[1]]]),
+      Stratum = as.character(.data[[input$stratum_selected_columns[2]]])
     ) %>%
     dplyr::distinct(Plot.ID, .keep_all = TRUE)
 
