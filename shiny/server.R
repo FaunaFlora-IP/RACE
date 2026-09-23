@@ -25,64 +25,63 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
     read.csv(input$fauna_csv$datapath, stringsAsFactors = FALSE)
   })
   
-### Column selections ----
-# Each required field gets its OWN dropdown (rather than one multi-select
-# relying on click order) so mapping a file's columns to Transect/Scientific
-# Name/etc. can never be ambiguous. An earlier version used a single
-# multi-select and paired the picks positionally with a fixed column order
-# (Transect, Scientific.Name, Taxon.Rank, Observation.Type, Indv) - which
-# silently mislabeled the data (e.g. Indv holding text like "PointLoc")
-# whenever a user picked the same correct columns in a different order,
-# only surfacing as a cryptic "invalid type" crash much later in Results.
-  output$fauna_column_mapper <- renderUI({
+  observeEvent({
+    input$fauna_csv
+    input$validationType
+  }, {
     req(fauna_data())
+    req(input$validationType != "")
+
+    updateSelectInput(
+      session,
+      inputId = "selected_columns",
+      choices = names(fauna_data()),
+      selected = NULL
+    )
+  })
+
+  output$columnHintText <- renderText({
     req(input$validationType)
 
-    col_choices <- names(fauna_data())
-
-    base_inputs <- tagList(
-      selectInput("col_transect", "Transect column", choices = col_choices),
-      selectInput("col_sciname", "Scientific Name column", choices = col_choices),
-      selectInput("col_taxonrank", "Taxon Rank column", choices = col_choices)
-    )
+    base_msg <- "Please select the column(s) that indicate transect, scientific name, and taxonomic rank, in that order."
 
     if (input$validationType == "Avifauna") {
-      tagList(
-        base_inputs,
-        selectInput("col_obstype", "Observation Type column", choices = col_choices),
-        selectInput("col_indv", "Individual Count column", choices = col_choices)
-      )
+      paste(base_msg, "Also include observation type and number of individuals, in that order (5 columns total).")
     } else {
-      base_inputs
+      paste(base_msg, "(3 columns total.)")
     }
   })
 
+### Column selections ----
+# A single multi-select, matched to the required fields by the ORDER the
+# user picks them in (Transect, Scientific Name, Taxon Rank, then -
+# Avifauna only - Observation Type, Individual Count). Pick columns in a
+# different order and they'll be silently mislabeled (e.g. Indv ending up
+# holding text like "PointLoc"), which only surfaces later as a cryptic
+# "invalid type" crash in Results - so the column order above must be
+# followed exactly when selecting.
   validated_data <- eventReactive(input$faunastart, {
     req(fauna_data())
-    req(input$col_transect, input$col_sciname, input$col_taxonrank)
+    req(input$selected_columns)
 
     data <- fauna_data()
+    selected <- input$selected_columns
 
-    if (input$validationType == "Avifauna") {
-      req(input$col_obstype, input$col_indv)
-      out <- data.frame(
-        Transect = data[[input$col_transect]],
-        Scientific.Name = data[[input$col_sciname]],
-        Taxon.Rank = data[[input$col_taxonrank]],
-        Observation.Type = data[[input$col_obstype]],
-        Indv = data[[input$col_indv]],
-        stringsAsFactors = FALSE
-      )
+    required_3 <- c("Transect", "Scientific.Name", "Taxon.Rank")
+    required_5 <- c(required_3, "Observation.Type", "Indv")
+
+    if (length(selected) == 5) {
+      out <- data[, selected]
+      names(out) <- required_5
+    } else if (length(selected) == 3) {
+      out <- data[, selected]
+      names(out) <- required_3
     } else {
-      out <- data.frame(
-        Transect = data[[input$col_transect]],
-        Scientific.Name = data[[input$col_sciname]],
-        Taxon.Rank = data[[input$col_taxonrank]],
-        stringsAsFactors = FALSE
-      )
+      showNotification("Please select either 3 or 5 columns.", type = "error")
+      return(NULL)
     }
 
-    out
+    return(out)
   })
   
 ### Species validation----
@@ -204,16 +203,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                 Simpson = sum(prop.table(n)^2)) %>%
       mutate(across(4:last_col(), round, 2))
     
-    datatable(dataspr, extensions = "Buttons", filter = "top",
-              options = list(
-                paging = TRUE,
-                scrollX = TRUE,
-                searching = TRUE,
-                ordering = TRUE,
-                dom = 'Bfrtip',
-                buttons = dt_export_buttons(),
-                pageLength = 10,
-                lengthMenu = c(3, 5, 10)))
+    DT::datatable(dataspr, extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"))
   })  
   
   ### abundance plot----
@@ -303,14 +302,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
     
     final_table <- out3[c(1, 2, 6,9), ]
     
-    datatable(final_table, extensions = "Buttons", filter = "top",
-              options = list(
-                paging = FALSE,
-                scrollX = TRUE,
-                searching = TRUE,
-                ordering = TRUE,
-                dom = 'Bfrtip',
-                buttons = dt_export_buttons()),
+    DT::datatable(final_table, extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"),
               escape = FALSE)
   })
   
@@ -418,15 +419,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
       as.data.frame() %>%
       round(2)
     
-    datatable(hct, extensions = "Buttons", filter = "top",
-              options = list(
-                paging = FALSE,
-                scrollX = TRUE,
-                searching = TRUE,
-                ordering = TRUE,
-                dom = 'Bfrtip',
-                buttons = dt_export_buttons(),
-                scrollY = "500px"),
+    DT::datatable(hct, extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"),
               escape = FALSE)
   })
 
@@ -500,17 +502,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
     
     req(species_list()) 
     
-    datatable(species_list(), extensions = "Buttons", filter = "top",
-      options = list(
-        paging = TRUE,
-        pageLength = 20,
-        lengthMenu = c(20, 50, 100),
-        scrollX = TRUE,
-        searching = TRUE,
-        ordering = TRUE,
-        dom = 'Bfrtip',
-        buttons = dt_export_buttons()
-      ),
+    DT::datatable(species_list(), extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"),
       escape = FALSE
     )
 
@@ -555,48 +556,44 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
     read.csv(input$Flo_csv_file$datapath, stringsAsFactors = FALSE)
   })  
   
-### Column selections ----
-# Same per-field dropdown approach as Fauna's mapper above - see the note
-# there for why a single multi-select's click order isn't used to pair
-# columns with required fields.
-  output$flora_column_mapper <- renderUI({
+  observeEvent({
+    input$Flo_csv_file
+  }, {
     req(flora_data())
 
-    col_choices <- names(flora_data())
-
-    tagList(
-      selectInput("flo_col_transect", "Transect column", choices = col_choices),
-      selectInput("flo_col_plotid", "Plot ID column", choices = col_choices),
-      selectInput("flo_col_treeid", "Tree ID column", choices = col_choices),
-      selectInput("flo_col_sciname", "Scientific Name column", choices = col_choices),
-      selectInput("flo_col_taxonrank", "Taxon Rank column", choices = col_choices),
-      selectInput("flo_col_class", "Class (size group) column", choices = col_choices),
-      selectInput("flo_col_dbh", "Girth (DBH) column", choices = col_choices),
-      selectInput("flo_col_tt", "Tree Height column", choices = col_choices)
+    updateSelectInput(
+      session,
+      inputId = "Flo_selected_columns",
+      choices = names(flora_data()),
+      selected = NULL
     )
   })
 
+### Column selections ----
+# A single multi-select, matched to the required fields by the ORDER the
+# user picks them in (Transect, Plot ID, Tree ID, Scientific Name, Taxon
+# Rank, Class, Girth, Tree Height). Pick columns in a different order and
+# they'll be silently mislabeled, which only surfaces later as a cryptic
+# crash further down the pipeline - so the column order above must be
+# followed exactly when selecting.
   validated_flora <- eventReactive(input$florastart, {
     req(flora_data())
-    req(input$flo_col_transect, input$flo_col_plotid, input$flo_col_treeid,
-        input$flo_col_sciname, input$flo_col_taxonrank, input$flo_col_class,
-        input$flo_col_dbh, input$flo_col_tt)
+    req(input$Flo_selected_columns)
 
     data <- flora_data()
+    selected <- input$Flo_selected_columns
 
-    out <- data.frame(
-      Transect = data[[input$flo_col_transect]],
-      Plot.ID = data[[input$flo_col_plotid]],
-      Tree.ID = data[[input$flo_col_treeid]],
-      Scientific.Name = data[[input$flo_col_sciname]],
-      Taxon.Rank = data[[input$flo_col_taxonrank]],
-      Class = data[[input$flo_col_class]],
-      DBH = data[[input$flo_col_dbh]],
-      TT = data[[input$flo_col_tt]],
-      stringsAsFactors = FALSE
-    )
+    required_8 <- c("Transect", "Plot.ID", "Tree.ID", "Scientific.Name", "Taxon.Rank", "Class", "DBH", "TT")
 
-    out
+    if (length(selected) == 8) {
+      out <- data[, selected]
+      names(out) <- required_8
+    } else {
+      showNotification("Please select exactly 8 columns: Transect, Plot ID, Tree ID, Scientific Name, Taxon Rank, Class, Girth, Tree Height", type = "error")
+      return(NULL)
+    }
+
+    return(out)
   })
 
 ### Species validation----
@@ -769,15 +766,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                 Simpson = sum(prop.table(n)^2)) %>%
       mutate(across(4:last_col(), ~round(., 2)))
     
-    datatable(dataspr, extensions = "Buttons", filter = "top",
-              options = list(paging = TRUE,
-                             scrollX=TRUE,
-                             searching = TRUE,
-                             ordering = TRUE,
-                             dom = 'Bfrtip',
-                             buttons = dt_export_buttons(),
-                             pageLength=10,
-                             lengthMenu=c(3,5,10) ))
+    DT::datatable(dataspr, extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"))
   })  
   
   ### abundance plot----
@@ -850,14 +848,16 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
       as.data.frame() %>%
       round(2)
     
-    datatable(hct, extensions = "Buttons", filter = "top",
-              options = list(
-                paging = FALSE,
-                scrollX = TRUE,
-                searching = TRUE,
-                ordering = TRUE,
-                dom = 'Bfrtip',
-                buttons = dt_export_buttons()),
+    DT::datatable(hct, extensions = "Buttons", filter = "top",
+                  options = list(
+                    paging = FALSE,
+                    scrollX = TRUE,
+                    searching = TRUE,
+                    ordering = TRUE,
+                    autoWidth = TRUE,
+                    dom = 'Bfrtip',
+                    buttons = dt_export_buttons(),
+                    scrollY = "500px"),
               escape = FALSE)
   })
   
@@ -908,15 +908,16 @@ output$IV <- renderDT({
     rownames(result_df) <- NULL
   }
   
-  datatable(result_df, extensions = "Buttons", filter = "top",
-            options = list(paging = TRUE,
-                           scrollX=TRUE,
-                           searching = TRUE,
-                           ordering = TRUE,
-                           dom = 'Bfrtip',
-                           buttons = dt_export_buttons(),
-                           pageLength=10,
-                           lengthMenu=c(3,5,10)))
+  DT::datatable(result_df, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"))
 })
 
 # Carbon Stock Estimation----
@@ -924,15 +925,16 @@ output$IV <- renderDT({
 ## Allometric equation reference table----
 output$allometric_ref_table <- renderDT({
 
-  datatable(allometric_ref, extensions = "Buttons", filter = "top",
-            options = list(
-              paging = TRUE,
-              pageLength = 10,
-              scrollX = TRUE,
-              searching = TRUE,
-              ordering = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons()),
+  DT::datatable(allometric_ref, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -952,15 +954,16 @@ output$wd_data_table <- renderDT({
 
   req(flora_with_wd())
 
-  datatable(flora_with_wd(), extensions = "Buttons", filter = "top",
-            options = list(
-              paging = TRUE,
-              pageLength = 10,
-              scrollX = TRUE,
-              searching = TRUE,
-              ordering = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv", "excel"))),
+  DT::datatable(flora_with_wd(), extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1010,13 +1013,16 @@ agb_r2_summary <- reactive({
 output$agb_r2_table <- renderDT({
   req(agb_r2_summary())
 
-  datatable(agb_r2_summary(), extensions = "Buttons", filter = "top",
-            options = list(
-              paging = FALSE,
-              searching = TRUE,
-              ordering = FALSE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv"))),
+  DT::datatable(agb_r2_summary(), extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1213,15 +1219,16 @@ output$agb_normality_plot <- renderPlot({
 ## Indonesia FRL 2nd reference table (AGB/AGC mean per national stratum)----
 output$frl_ref_table <- renderDT({
 
-  datatable(frl_stratum_ref, extensions = "Buttons", filter = "top",
-            options = list(
-              paging = TRUE,
-              pageLength = 10,
-              scrollX = TRUE,
-              searching = TRUE,
-              ordering = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv"))),
+  DT::datatable(frl_stratum_ref, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1240,15 +1247,16 @@ output$agc_plot_data_table <- renderDT({
 
   req(agc_plot_edited())
 
-  datatable(agc_plot_edited(), extensions = "Buttons", editable = "cell", filter = "top",
-            options = list(
-              paging = TRUE,
-              pageLength = 10,
-              scrollX = TRUE,
-              searching = TRUE,
-              ordering = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv", "excel"))),
+  DT::datatable(agc_plot_edited(), extensions = "Buttons", editable = "cell", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1321,14 +1329,16 @@ output$tree_density_table <- renderDT({
 
   stats_tbl <- compute_stratum_stats(flora_plot_final(), "Density_ha")
 
-  datatable(stats_tbl, extensions = "Buttons", filter = "top",
-            options = list(
-              paging = FALSE,
-              searching = TRUE,
-              ordering = TRUE,
-              scrollX = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv", "excel"))),
+  DT::datatable(stats_tbl, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1366,14 +1376,16 @@ output$tree_density_by_class_table <- renderDT({
     tidyr::pivot_wider(names_from = DBH.G, values_from = Mean) %>%
     dplyr::rename_with(~ paste0(labels[.], " (trees/ha)"), -Stratum)
 
-  datatable(wide_tbl, extensions = "Buttons", filter = "top",
-            options = list(
-              paging = FALSE,
-              searching = TRUE,
-              ordering = TRUE,
-              scrollX = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv", "excel"))),
+  DT::datatable(wide_tbl, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1384,14 +1396,16 @@ output$mean_weighted_carbon_table <- renderDT({
 
   stats_tbl <- compute_stratum_stats(flora_plot_final(), "AGC_tpha")
 
-  datatable(stats_tbl, extensions = "Buttons", filter = "top",
-            options = list(
-              paging = FALSE,
-              searching = TRUE,
-              ordering = TRUE,
-              scrollX = TRUE,
-              dom = 'Bfrtip',
-              buttons = dt_export_buttons(c("copy", "csv", "excel"))),
+  DT::datatable(stats_tbl, extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
             escape = FALSE)
 })
 
@@ -1465,17 +1479,16 @@ output$flo_splistcs <- renderDT({
 
   req(flo_species_list())
 
-  datatable(flo_species_list(), extensions = "Buttons", filter = "top",
-    options = list(
-      paging = TRUE,
-      pageLength = 20,
-      lengthMenu = c(20, 50, 100),
-      scrollX = TRUE,
-      searching = TRUE,
-      ordering = TRUE,
-      dom = 'Bfrtip',
-      buttons = dt_export_buttons()
-    ),
+  DT::datatable(flo_species_list(), extensions = "Buttons", filter = "top",
+                options = list(
+                  paging = FALSE,
+                  scrollX = TRUE,
+                  searching = TRUE,
+                  ordering = TRUE,
+                  autoWidth = TRUE,
+                  dom = 'Bfrtip',
+                  buttons = dt_export_buttons(),
+                  scrollY = "500px"),
     escape = FALSE
   )
 })

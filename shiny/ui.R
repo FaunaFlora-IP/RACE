@@ -238,9 +238,10 @@ ui <- dashboardPage(
                       selectInput(inputId = "validationType", label = "Dataset",
                                   choices = c("Avifauna", "Herpetofauna", "Mammals")),
 
-                      p("Map each required field below to the matching column in your file."),
+                      textOutput("columnHintText"),
 
-                      uiOutput("fauna_column_mapper"),
+                      selectInput("selected_columns", "Select Columns to Use",
+                                  choices = NULL, multiple = TRUE),
 
                       tags$hr(),
                       actionButton(inputId = "faunastart", label = "1. Validate"),
@@ -428,9 +429,10 @@ ui <- dashboardPage(
                                   "text/comma-separated-values,text/plain",
                                   ".csv")),
 
-                      p("Map each required field below to the matching column in your file."),
+                      p("Please select the column(s) that indicate Transect, Plot ID, Tree ID, Scientific Name, Taxonomic Rank, Class group, Girth and Tree Height, in that order (8 columns total)."),
 
-                      uiOutput("flora_column_mapper"),
+                      selectInput("Flo_selected_columns", "Select Columns to Use",
+                                  choices = NULL, multiple = TRUE),
                       tags$hr(),
                       actionButton(inputId = "florastart", label = "1. Validate dataset"),
                       tags$br(), tags$br(),
