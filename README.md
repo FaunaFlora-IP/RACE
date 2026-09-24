@@ -82,4 +82,4 @@ Carbon stock: `BIOMASS`, `moments`, `mgcv`
 
 ## Citation
 
-Fauna & Flora's Indonesia Programme. (2026). *RACE: Rapid Assessment for Carbon Stock and Wildlife Ecology* [Software]. *(Suggested citation — update with a DOI or formal reference if one is registered.)*
+Fauna & Flora's Indonesia Programme. (2026). RACE: Rapid Assessment for Carbon Stock and Wildlife Ecology (Version v1.1) [Computer software]. https://doi.org/10.5281/zenodo.22929383
