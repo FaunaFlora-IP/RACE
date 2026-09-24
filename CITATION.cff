@@ -1,0 +1,20 @@
+cff-version: 1.1
+message: "If you use RACE in your research or conservation work, please cite it using the metadata below."
+
+title: "RACE: Rapid Assessment for Carbon Stock and Wildlife Ecology"
+type: software
+version: "1.1"
+
+authors:
+  - name: "Fauna & Flora's Indonesia Programme"
+
+doi: "10.5281/zenodo.22929383"
+url: "https://doi.org/10.5281/zenodo.22929383"
+
+keywords:
+  - biodiversity
+  - carbon
+  - wildlife
+  - conservation
+  - monitoring
+  - rapid assessment
