@@ -14,6 +14,92 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
   })
 }
 
+# Shared dataset-validation report UI----
+
+render_validation_ui <- function(report, raw) {
+  res <- get_results(report = report)
+
+  n_pass <- sum(res$type == "success")
+  n_fail <- sum(res$type == "error")
+  n_warn <- sum(res$type == "warning")
+
+  status_badge <- function(n, color, label) {
+    tags$div(style = "display:inline-block; text-align:center; margin-right:30px;",
+      tags$span(style = paste0(
+        "display:inline-flex; align-items:center; justify-content:center; ",
+        "width:32px; height:32px; border-radius:50%; background:", color,
+        "; color:white; font-weight:bold;"
+      ), n),
+      tags$strong(style = "margin-left:8px;", label)
+    )
+  }
+
+  summary_row <- tags$div(style = "margin-bottom: 15px;",
+    status_badge(n_fail, "#dc3545", "Failed"),
+    status_badge(n_warn, "#ffc107", "Warnings"),
+    status_badge(n_pass, "#28a745", "Passed")
+  )
+
+  rules_dt <- DT::datatable(
+    res %>%
+      dplyr::transmute(
+        "Validation rule" = description,
+        Status = dplyr::case_when(
+          type == "error"   ~ "<span style='color:#dc3545;font-weight:bold;'>&#10007; Failed</span>",
+          type == "warning" ~ "<span style='color:#856404;font-weight:bold;'>&#9888; Warning</span>",
+          TRUE               ~ "<span style='color:#28a745;font-weight:bold;'>&#10003; Passed</span>"
+        )
+      ),
+    escape = FALSE, rownames = FALSE, selection = "none",
+    options = list(paging = FALSE, searching = FALSE, ordering = FALSE, info = FALSE, dom = 't')
+  )
+
+  failed <- res %>%
+    tidyr::unnest(error_df, keep_empty = TRUE) %>%
+    dplyr::filter(type == "error", !is.na(index))
+
+  detail_ui <- if (nrow(failed) > 0) {
+    issues_by_row <- failed %>%
+      dplyr::group_by(index) %>%
+      dplyr::summarise(Issues = paste(unique(description), collapse = " | "), .groups = "drop")
+
+    flagged <- raw
+    flagged$Issues <- ""
+    flagged$Issues[issues_by_row$index] <- issues_by_row$Issues
+    flagged <- tibble::add_column(flagged, "CSV Row" = seq_len(nrow(flagged)) + 1, .before = 1)
+
+    n_rows_flagged <- sum(flagged$Issues != "")
+    issues_col <- ncol(flagged) - 1
+
+    flagged_dt <- DT::datatable(
+      flagged,
+      extensions = "Buttons", filter = "top", rownames = FALSE,
+      options = list(
+        paging = FALSE,
+        scrollX = TRUE,
+        searching = TRUE,
+        ordering = TRUE,
+        autoWidth = FALSE,
+        dom = 'Bfrtip',
+        buttons = dt_export_buttons(),
+        scrollY = "500px")
+    )
+
+    tagList(
+      tags$p(
+        tags$strong(n_rows_flagged), " of ", nrow(flagged),
+        " rows have at least one issue (sorted to the top below). \"CSV Row\" counts the header as row 1, matching the row number you'd see opening the file in Excel.",
+        style = "margin-top: 15px; color: #6c757d;"
+      ),
+      flagged_dt
+    )
+  } else {
+    NULL
+  }
+
+  tagList(summary_row, rules_dt, detail_ui)
+}
+
 #Fauna----
 
 ## Fauna data input----  
@@ -119,7 +205,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -148,10 +234,10 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
       validate_cols(predicate = not_na, c("Scientific.Name", "Taxon.Rank"), description = "No missing values in taxonomic fields") %>%
       validate_cols(in_set(c("Species", "Genus", "Family", "Ordo")), "Taxon.Rank", description = "Correct Taxon Rank category") %>%
       add_results(report)
-    
-    render_semantic_report_ui(get_results(report = report))
-    
- })   
+
+    render_validation_ui(report, raw)
+
+ })
   
   
 ## Fauna data results----
@@ -202,7 +288,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"))
@@ -317,7 +403,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -434,7 +520,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -517,7 +603,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -642,7 +728,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -675,7 +761,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
       validate_cols(predicate = is.numeric, c("DBH", "TT"), description = "Girth and Tree Height must be numeric") %>%
       add_results(report)
 
-    render_semantic_report_ui(get_results(report = report))
+    render_validation_ui(report, raw)
 
   })
 
@@ -776,7 +862,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"))
@@ -858,7 +944,7 @@ dt_export_buttons <- function(types = c("copy", "csv", "excel", "pdf")) {
                     scrollX = TRUE,
                     searching = TRUE,
                     ordering = TRUE,
-                    autoWidth = TRUE,
+                    autoWidth = FALSE,
                     dom = 'Bfrtip',
                     buttons = dt_export_buttons(),
                     scrollY = "500px"),
@@ -918,7 +1004,7 @@ output$IV <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"))
@@ -935,7 +1021,7 @@ output$allometric_ref_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -964,7 +1050,7 @@ output$wd_data_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1023,14 +1109,19 @@ output$agb_r2_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
             escape = FALSE)
 })
 
-### AGB vs DBH fit plot (GAM smooth, shaded CI) - method comparison----
+### AGB vs DBH fit plot - method comparison----
+# Two curve types are offered instead:
+#   "exact" - evaluate each equation's real formula over a DBH grid at this
+#             survey's own mean wood density/height. 
+#   "glm"   - a Gamma(link="log") GLM fit through the actual scattered
+#             points. 
 output$agb_dbh_fit <- renderPlot({
 
   req(flora_agb_compare())
@@ -1043,17 +1134,51 @@ output$agb_dbh_fit <- renderPlot({
     dplyr::left_join(r2_tbl %>% dplyr::select(Method, label), by = c(".method" = "Method")) %>%
     dplyr::mutate(label = factor(label, levels = r2_tbl$label))
 
-  ggplot(data, aes(x = DBH, y = AGB_kg, color = label, fill = label)) +
-    geom_point(alpha = 0.4) +
-    geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), se = TRUE, alpha = 0.2, linewidth = 1) +
-    labs(
-      title = "AGB vs DBH — Method Comparison",
-      subtitle = "GAM fit with 95% shaded CI - legend ordered by R² (highest first)",
-      x = "DBH (cm)",
-      y = "Tree Biomass (kg/tree)",
-      color = "Method (R²)",
-      fill = "Method (R²)"
-    ) +
+  p <- ggplot(data, aes(x = DBH, y = AGB_kg, color = label, fill = label)) +
+    geom_point(alpha = 0.4)
+
+  if (identical(input$agb_curve_type, "glm")) {
+
+    p <- p +
+      geom_smooth(method = "glm", method.args = list(family = Gamma(link = "log")),
+                  formula = y ~ log(x), se = TRUE, alpha = 0.2, linewidth = 1) +
+      labs(
+        title = "AGB vs DBH",
+        subtitle = "GLM fit with 95% CI",
+        x = "DBH (cm)",
+        y = "Tree Biomass (kg/tree)",
+        color = "Method (R²)",
+        fill = "Method (R²)"
+      )
+
+  } else {
+
+    dbh_seq <- seq(min(data$DBH, na.rm = TRUE), max(data$DBH, na.rm = TRUE), length.out = 200)
+    grid_df <- data.frame(
+      DBH          = dbh_seq,
+      TT           = mean(data$TT, na.rm = TRUE),
+      wood_density = mean(data$wood_density, na.rm = TRUE)
+    )
+
+    curve_data <- calc_AGB_compare(grid_df, methods = input$allometric_compare,
+                                    dbh_col = "DBH", h_col = "TT", rho_col = "wood_density") %>%
+      dplyr::left_join(r2_tbl %>% dplyr::select(Method, label), by = c(".method" = "Method")) %>%
+      dplyr::mutate(label = factor(label, levels = r2_tbl$label))
+
+    p <- p +
+      geom_line(data = curve_data, aes(x = DBH, y = AGB_kg, color = label),
+                linewidth = 1, inherit.aes = FALSE) +
+      labs(
+        title = "AGB vs DBH",
+        subtitle = "Exact allometric equation at this survey",
+        x = "DBH (cm)",
+        y = "Tree Biomass (kg/tree)",
+        color = "Method (R²)",
+        fill = "Method (R²)"
+      )
+  }
+
+  p +
     theme_bw(base_size = 13) +
     theme(legend.position = "bottom") +
     legend_theme
@@ -1224,7 +1349,7 @@ output$frl_ref_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1252,7 +1377,7 @@ output$agc_plot_data_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1334,7 +1459,7 @@ output$tree_density_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1381,7 +1506,7 @@ output$tree_density_by_class_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1401,7 +1526,7 @@ output$mean_weighted_carbon_table <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),
@@ -1484,7 +1609,7 @@ output$flo_splistcs <- renderDT({
                   scrollX = TRUE,
                   searching = TRUE,
                   ordering = TRUE,
-                  autoWidth = TRUE,
+                  autoWidth = FALSE,
                   dom = 'Bfrtip',
                   buttons = dt_export_buttons(),
                   scrollY = "500px"),

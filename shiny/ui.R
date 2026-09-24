@@ -198,17 +198,16 @@ ui <- dashboardPage(
                     style = "width: 100%;",
                     tags$tr(
                       tags$td(style = "width: 140px; vertical-align: top;", strong("Version")),
-                      tags$td("RACE v1.0.0")
+                      tags$td("RACE v1.1")
                     ),
                     tags$tr(
                       tags$td(style = "vertical-align: top;", strong("Documentation")),
                       # PLACEHOLDER LINK - replace href with the real docs URL when available
-                      tags$td(tags$a(href = "#REPLACE_WITH_DOCUMENTATION_URL", target = "_blank", "User guide and methods documentation"))
+                      tags$td(tags$a(href = "https://github.com/FaunaFlora-IP/RACE", target = "_blank", "RACE"))
                     ),
                     tags$tr(
                       tags$td(style = "vertical-align: top;", strong("Citation")),
-                      tags$td("Fauna & Flora's Indonesia Programme. (2026). RACE: Rapid Assessment for Carbon Stock and Wildlife Ecology [Software]. ",
-                              em("(Suggested citation - update with a DOI or formal reference if one is registered.)"))
+                      tags$td("Fauna & Flora's Indonesia Programme. (2026). RACE: Rapid Assessment for Carbon Stock and Wildlife Ecology (Version v1.1) [Computer software]. https://doi.org/10.5281/zenodo.22929383")
                     )
                   )
                 )
@@ -627,6 +626,16 @@ tabItem(tabName = "Flo_dat_car",
             solidHeader = TRUE,
             collapsible = TRUE,
             maximizable = TRUE,
+            radioButtons(
+              inputId = "agb_curve_type",
+              label = "Curve type",
+              choices = c(
+                "Exact equation (recommended)"   = "exact",
+                "GLM fit"      = "glm"
+              ),
+              selected = "exact",
+              inline = TRUE
+            ),
             plotOutput(outputId = "agb_dbh_fit", width = "100%")
           ),
 
@@ -649,7 +658,7 @@ tabItem(tabName = "Flo_dat_car",
             solidHeader = TRUE,
             collapsible = TRUE,
             maximizable = TRUE,
-            p("Based on the comparison above, choose the single allometric equation to use for the final carbon stock calculation (Q-Q plot and distribution check below)."),
+            p("Based on the comparison above, choose the single allometric equation to use for the final carbon stock calculation."),
             selectInput(
               inputId = "final_allometric_method",
               label = "Final Allometric Equation",
@@ -708,7 +717,7 @@ tabItem(tabName = "Flo_dat_car",
               column(
                 width = 12,
                 h5(strong("Nested Sub-Plot Design")),
-                p("Vegetation plots are typically measured across three nested sub-plots of increasing size, one per DBH class (the Class column, A/B/C, from your Data Processing upload) - larger trees are rarer and need a bigger area to sample reliably. Each tree's value is scaled up to a per-hectare figure using 1 / (sub-plot area in hectares). This is the standard design used by default:"),
+                p("Vegetation plots are typically measured across three nested sub-plots of increasing size, one per DBH class (the Class column, A/B/C, from your Data Processing upload). Below is the standard design used by default:"),
                 div(
                   style = "margin-bottom: 12px;",
                   tags$img(
